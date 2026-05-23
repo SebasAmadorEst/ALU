@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - ALU ESP32 Binaria</title>
+    <style>
+        :root {
+            --bg-color: #121824;
+            --card-bg: #1c2333;
+            --text-color: #e2e8f0;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --lcd-bg: #9bc53d;
+            --lcd-text: #1e250b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            color: #fff;
+            border-bottom: 2px solid #2d3748;
+            padding-bottom: 10px;
+        }
+
+        /* Conexión Serial */
+        .connection-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #242f47;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background-color: var(--accent-red);
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-dot.connected {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 10px var(--accent-green);
+        }
+
+        button {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: #2563eb; }
+        button.disconnect-btn { background-color: var(--accent-red); }
+        button.disconnect-btn:hover { background-color: #dc2626; }
+
+        /* Controles de Datos (Switches Binarios) */
+        .control-group {
+            margin-bottom: 25px;
+            background: #181f2e;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .panel-header-dinamico {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+
+        .switches-row {
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+            padding: 5px 0;
+        }
+
+        .switch-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .switch-label-bit {
+            font-size: 11px;
+            color: #64748b;
+            font-family: monospace;
+        }
+
+        /* Estilo del Switch deslizable */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider-round {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155;
+            transition: .3s;
+            border-radius: 34px;
+        }
+
+        .slider-round:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider-round {
+            background-color: var(--accent-blue);
+        }
+
+        input:checked + .slider-round:before {
+            transform: translateX(24px);
+        }
+
+        .val-display {
+            font-size: 16px;
+            font-weight: bold;
+            background: #242f47;
+            padding: 2px 12px;
+            border-radius: 4px;
+            color: #fff;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            background-color: #242f47;
+            color: white;
+            border: 1px solid #3b4252;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        /* Flags de Estado */
+        .flags-container {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            background: #181f2e;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .flag {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            font-weight: bold;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .flag-led {
+            width: 30px;
+            height: 15px;
+            background-color: #334155;
+            border-radius: 3px;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+
+        .flag.active .flag-led.carry {
+            background-color: #f59e0b;
+            box-shadow: 0 0 10px #f59e0b;
+        }
+
+        .flag.active .flag-led.zero {
+            background-color: #06b6d4;
+            box-shadow: 0 0 10px #06b6d4;
+        }
+
+        .flag.active span { color: #fff; }
+
+        /* Simulador LCD */
+        .lcd-simulator {
+            background-color: var(--lcd-bg);
+            color: var(--lcd-text);
+            font-family: 'Courier New', Courier, monospace;
+            padding: 15px;
+            border-radius: 6px;
+            border: 4px solid #334155;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            font-weight: bold;
+            font-size: 20px;
+            letter-spacing: 1px;
+        }
+
+        .lcd-line {
+            min-height: 24px;
+            white-space: pre;
+        }
+
+        .serial-log {
+            font-size: 12px;
+            color: #64748b;
+            text-align: center;
+            margin-top: 15px;
+            font-family: monospace;
+            background: #181f2e;
+            padding: 6px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🎛️ Panel ALU - Control Binario</h2>
+
+    <!-- Conexión Serial -->
+    <div class="connection-panel">
+        <div>
+            <span id="statusDot" class="status-dot"></span>
+            <span id="statusText">Estado: Desconectado</span>
+        </div>
+        <button id="btnConectar">Conectar ESP32</button>
+    </div>
+
+    <!-- Interruptores Entrada A -->
+    <div class="control-group">
+        <div class="panel-header-dinamico">
+            <label>Entrada A (4 Bits)</label>
+            <span id="valA" class="val-display">Valor: 0 (0000)</span>
+        </div>
+        <div class="switches-row">
+            <div class="switch-container">
+                <span class="switch-label-bit">Bit 3 (8)</span>
+                <label class="toggle-switch"><input type="checkbox" id="a3" class="bit-a"><span class="slider-round"></span></label>
+            </div>
+            <div class="switch-container">
+                <span class="switch-label-bit">Bit 2 (4)</span>
+                <label class="toggle-switch"><input type="checkbox" id="a2" class="bit-a"><span class="slider-round"></span></label>
+            </div>
+            <div class="switch-container">
+                <span class="switch-label-bit">Bit 1 (2)</span>
+                <label class="toggle-switch"><input type="checkbox" id="a1" class="bit-a"><span class="slider-round"></span></label>
+            </div>
+            <div class="switch-container">
+                <span class="switch-label-bit">Bit 0 (1)</span>
+                <label class="toggle-switch"><input type="checkbox" id="a0" class="bit-a"><span class="slider-round"></span></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interruptores Entrada B -->
+    <div class="control-group">
+        <div class="panel-header-dinamico">
+            <label>Entrada B (4 Bits)</label>
+            <span id="valB" class="val-display">Valor: 0 (0000)</span>
+        </div>
+        <div class="switches-row">
+            <div class="switch-container">
+                <span class="switch-label-bit">Bit 3 (8)</span>
+                <label class="toggle-switch"><input type="checkbox" id="b3" class="bit-b"><span class="slider-round"></span></label>
+            </div>
+            <div class="switch-container">
+                <span class="switch-label-bit">Bit 2 (4)</span>
+                <label class="toggle-switch"><input type="checkbox" id="b2" class="bit-b"><span class="slider-round"></span></label>
+            </div>
+            <div class="switch-container">
+                <span class="switch-label-bit">Bit 1 (2)</span>
+                <label class="toggle-switch"><input type="checkbox" id="b1" class="bit-b"><span class="slider-round"></span></label>
+            </div>
+            <div class="switch-container">
+                <span class="switch-label-bit">Bit 0 (1)</span>
+                <label class="toggle-switch"><input type="checkbox" id="b0" class="bit-b"><span class="slider-round"></span></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Selector de Operaciones -->
+    <div class="control-group">
+        <label style="display:block; margin-bottom:8px;">Operación de la ALU</label>
+        <select id="selectOp">
+            <option value="0">0: Suma (A + B)</option>
+            <option value="1">1: Resta (A - B)</option>
+            <option value="2">2: Incremento (A + 1)</option>
+            <option value="3">3: Decremento (A - 1)</option>
+            <option value="4">4: División (A / B)</option>
+        </select>
+    </div>
+
+    <!-- Indicadores de Flags -->
+    <div class="flags-container">
+        <div class="flag" id="flagCarry">
+            <span>CARRY (Acarreo)</span>
+            <div class="flag-led carry"></div>
+        </div>
+        <div class="flag" id="flagZero">
+            <span>ZERO (Cero)</span>
+            <div class="flag-led zero"></div>
+        </div>
+    </div>
+
+    <!-- Vista de Pantalla LCD Simulada -->
+    <label style="display:block; margin-bottom:8px; font-weight:600;">Monitor de Pantalla LCD Físico:</label>
+    <div class="lcd-simulator">
+        <div id="lcdLine1" class="lcd-line">A:0   B:0   Suma A+B</div>
+        <div id="lcdLine2" class="lcd-line">Res: 0    C: 0</div>
+    </div>
+
+    <div id="serialLog" class="serial-log">Trama Serial: 0,0,0\n</div>
+</div>
+
+<script>
+    let port = null;
+    let writer = null;
+    let reader = null;
+    let conectado = false;
+
+    const opNames = [
+        "Suma A+B", 
+        "Resta A-B", 
+        "Inc A (A+1)", 
+        "Dec A (A-1)", 
+        "Div A/B"
+    ];
+
+    // Elementos DOM
+    const btnConectar = document.getElementById('btnConectar');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const selectOp = document.getElementById('selectOp');
+    const lcdLine1 = document.getElementById('lcdLine1');
+    const lcdLine2 = document.getElementById('lcdLine2');
+    const serialLog = document.getElementById('serialLog');
+    const flagCarry = document.getElementById('flagCarry');
+    const flagZero = document.getElementById('flagZero');
+    const valA = document.getElementById('valA');
+    const valB = document.getElementById('valB');
+
+    // Función para leer el valor decimal combinando los 4 checkboxes
+    function obtenerValorBinario(claseClave) {
+        const bit3 = document.getElementById(`${claseClave}3`).checked ? 8 : 0;
+        const bit2 = document.getElementById(`${claseClave}2`).checked ? 4 : 0;
+        const bit1 = document.getElementById(`${claseClave}1`).checked ? 2 : 0;
+        const bit0 = document.getElementById(`${claseClave}0`).checked ? 1 : 0;
+        
+        const suma = bit3 + bit2 + bit1 + bit0;
+        
+        // Generar string binario para la etiqueta superior (ej: 0101)
+        const strBin = ((bit3?1:0).toString() + (bit2?1:0).toString() + (bit1?1:0).toString() + (bit0?1:0).toString());
+        return { decimal: suma, binario: strBin };
+    }
+
+    // Evento de conexión / desconexión por puerto COM
+    btnConectar.addEventListener('click', async () => {
+        if (!conectado) {
+            if (!("serial" in navigator)) {
+                alert("Tu navegador no soporta Web Serial API. Usa Google Chrome o MS Edge.");
+                return;
+            }
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                
+                writer = port.writable.getWriter();
+                conectado = true;
+                
+                statusDot.classList.add('connected');
+                statusText.innerText = "Estado: Conectado";
+                btnConectar.innerText = "Desconectar ESP32";
+                btnConectar.classList.add('disconnect-btn');
+                
+                // Forzar primer envío apenas se conecta para despertar la ESP32
+                calcularYEnviar();
+                leerDatosPuerto();
+            } catch (error) {
+                console.error(error);
+                alert("No se pudo abrir el puerto serial.");
+            }
+        } else {
+            conectado = false;
+            if (reader) await reader.cancel();
+            if (writer) writer.releaseLock();
+            if (port) await port.close();
+            
+            statusDot.classList.remove('connected');
+            statusText.innerText = "Estado: Desconectado";
+            btnConectar.innerText = "Conectar ESP32";
+            btnConectar.classList.remove('disconnect-btn');
+        }
+    });
+
+    // Añadir eventos a todos los interruptores
+    document.querySelectorAll('.bit-a, .bit-b').forEach(checkbox => {
+        checkbox.addEventListener('change', () => { calcularYEnviar(); });
+    });
+    selectOp.addEventListener('change', () => { calcularYEnviar(); });
+
+    function calcularYEnviar() {
+        const dataA = obtenerValorBinario('a');
+        const dataB = obtenerValorBinario('b');
+        const opVal = parseInt(selectOp.value);
+
+        // Actualizar textos dinámicos de los paneles de bits
+        valA.innerText = `Valor: ${dataA.decimal} (${dataA.binario})`;
+        valB.innerText = `Valor: ${dataB.decimal} (${dataB.binario})`;
+
+        let res = 0;
+        let carry = 0;
+
+        // Simulación matemática local
+        switch(opVal) {
+            case 0: res = dataA.decimal + dataB.decimal; if(res > 15) carry = 1; res &= 0xF; break;
+            case 1: res = dataA.decimal - dataB.decimal; if(res < 0) { res += 16; carry = 1; } break;
+            case 2: res = (dataA.decimal + 1) & 0xF; break;
+            case 3: res = (dataA.decimal - 1) & 0xF; break;
+            case 4: res = (dataB.decimal !== 0) ? Math.floor(dataA.decimal / dataB.decimal) & 0xF : 0; break;
+            default: res = 0; break;
+        }
+
+        // Renderizado del visor LCD simulado
+        const parteIzquierda = `A:${dataA.decimal} B:${dataB.decimal}`;
+        const parteDerecha = opNames[opVal];
+        const linea1 = parteIzquierda + " ".repeat(Math.max(1, 16 - (parteIzquierda.length + parteDerecha.length))) + parteDerecha;
+        
+        lcdLine1.innerText = linea1.substring(0, 16);
+        lcdLine2.innerText = `Res: ${res}`.padEnd(10, ' ') + `C: ${carry}`;
+
+        // Control visual de LEDs de banderas
+        if (carry === 1) flagCarry.classList.add('active');
+        else flagCarry.classList.remove('active');
+
+        if (res === 0) flagZero.classList.add('active');
+        else flagZero.classList.remove('active');
+
+        // Mostrar trama en consola inferior
+        serialLog.innerText = `Trama Serial Enviada: ${dataA.decimal},${dataB.decimal},${opVal}\\n`;
+
+        // ENVIAR POR PUERTO FÍSICO
+        if (conectado && writer) {
+            const cadenaData = `${dataA.decimal},${dataB.decimal},${opVal}\n`;
+            const encoder = new TextEncoder();
+            writer.write(encoder.encode(cadenaData)).catch(err => console.error("Error al escribir:", err));
+        }
+    }
+
+async function leerDatosPuerto() {
+        while (port && conectado) {
+            try {
+                // Creamos un decodificador de texto básico
+                const decoder = new TextDecoder();
+                reader = port.readable.getReader();
+                let acumulador = "";
+
+                while (conectado) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    // Convertimos los bytes recibidos a string y los sumamos al búfer
+                    acumulador += decoder.decode(value, { stream: true });
+                    
+                    // Procesamos si hay uno o más saltos de línea en el acumulador
+                    while (acumulador.includes('\n')) {
+                        const posicionSiguiente = acumulador.indexOf('\n');
+                        // Extraemos la línea sin el carácter de salto de línea
+                        const lineaCompleta = acumulador.substring(0, posicionSiguiente).trim();
+                        // Dejamos el resto en el búfer
+                        acumulador = acumulador.substring(posicionSiguiente + 1);
+                        
+                        if (lineaCompleta) {
+                            console.log("ESP32:", lineaCompleta);
+                            // Aquí puedes meter lógica para actualizar la interfaz 
+                            // si decides que el ESP32 devuelva las flags reales.
+                        }
+                    }
+                }
+            } catch (error) {
+                // Evitamos alarmas molestas si la desconexión fue intencional
+                if (conectado) {
+                    console.error("Error de lectura:", error);
+                }
+                break;
+            } finally {
+                if (reader) {
+                    reader.releaseLock();
+                }
+            }
+        }
+    }
+
+    // Configuración inicial
+    calcularYEnviar();
+</script>
+
+</body>
+</html>
