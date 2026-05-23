@@ -22,7 +22,7 @@ ALU/
 
 * **Placa:** ESP32 (DevKit V1 o similar).
 * **Pantalla:** LCD 16x2 con adaptador I2C (PCF8574).
-* **Cables:** Jumpers Dupont (Hembra-Hembra).
+* **Cables:** Jumpers Dupont (Macho-Hembra).
 * **Conexión:** Cable Micro-USB para datos y alimentación.
 
 ### 🔌 Conexiones (Pinout)
